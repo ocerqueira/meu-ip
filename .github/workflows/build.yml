@@ -2,8 +2,8 @@ name: Build Python Executables for Windows and Linux (deb)
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
 
 jobs:
   build_windows:
@@ -22,15 +22,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-      - name: Build executable for Windows
+      - name: Build Windows executable
         run: |
-          pyinstaller --onefile --name meu-ip --icon=assets/icone.ico --noconsole --strip main.py
+          python -m pyinstaller --onefile --name meu-ip --icon=assets/icone.ico --noconsole main.py
 
       - name: Upload Windows executable as artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-executable
-          path: dist/meu-ip.exe
+          path: dist/meu-ip.exe  # Ajuste este caminho conforme necessário
 
   build_linux:
     runs-on: ubuntu-latest
@@ -51,9 +51,9 @@ jobs:
           sudo apt-get install -y ruby-dev build-essential
           sudo gem install --no-document fpm
 
-      - name: Build executable for Linux
+      - name: Build Linux executable
         run: |
-          pyinstaller --onefile --name meu-ip --icon=assets/icone.png --noconsole --strip main.py
+          python -m pyinstaller --onefile --name meu-ip --icon=assets/icone.png --noconsole main.py
 
       - name: Package executable into .deb
         run: |
@@ -73,51 +73,32 @@ jobs:
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
-      
+
       - name: Download Windows executable
         uses: actions/download-artifact@v4
         with:
           name: windows-executable
           path: dist
-      
+
       - name: Download Linux .deb package
         uses: actions/download-artifact@v4
         with:
           name: linux-deb-package
           path: package
-      
+
       - name: Debug artifacts
         run: |
           echo "Conteúdo de dist:"
           ls -la dist/ || echo "Diretório dist não encontrado!"
           echo "Conteúdo de package:"
           ls -la package/ || echo "Diretório package não encontrado!"
-          echo "Listando todos os arquivos baixados:"
-          find . -type f -not -path "./.git*" | sort
-      
-      - name: Prepare release files
-        run: |
-          mkdir -p release_files
-          # Cria arquivos vazios caso não sejam encontrados (para depuração)
-          if [ -d "dist" ]; then
-            find dist -type f -name "*.exe" -exec cp {} release_files/ \;
-          else
-            echo "Diretório dist não encontrado" > release_files/debug_dist.txt
-          fi
-          
-          if [ -d "package" ]; then
-            find package -type f -name "*.deb" -exec cp {} release_files/ \;
-          else
-            echo "Diretório package não encontrado" > release_files/debug_package.txt
-          fi
-          
-          echo "Arquivos preparados para release:"
-          ls -la release_files/
-      
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          files: release_files/*
+          tag_name: ${{ github.ref_name }}  # Usa a tag que acionou o workflow
+          files: |
+            dist/meu-ip.exe
+            package/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
