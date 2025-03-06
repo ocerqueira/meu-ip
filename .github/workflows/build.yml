@@ -11,24 +11,27 @@ jobs:
 
     steps:
       - name: Check out the code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.13'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller upx
+          pip install pyinstaller
+
+      - name: Install UPX
+        run: choco install upx -y
 
       - name: Build executable for Windows
         run: |
-          pyinstaller --onefile --name meu-ip --icon=assets/icone.ico --noconsole --strip --compress=upx main.py
+          pyinstaller --onefile --name meu-ip --icon=assets/icone.ico --noconsole --strip --upx-dir="C:\ProgramData\chocolatey\lib\upx\tools" main.py
 
       - name: Upload Windows executable as artifact
-        uses: actions/upload-artifact@v4  # Atualizado para v4
+        uses: actions/upload-artifact@v4
         with:
           name: windows-executable
           path: dist/meu-ip.exe
@@ -38,24 +41,24 @@ jobs:
 
     steps:
       - name: Check out the code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.13'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller upx
+          pip install pyinstaller
           sudo apt-get update
-          sudo apt-get install -y ruby-dev build-essential
+          sudo apt-get install -y ruby-dev build-essential upx
           sudo gem install --no-document fpm
 
       - name: Build executable for Linux
         run: |
-          pyinstaller --onefile --name meu-ip --icon=assets/icone.png --noconsole --strip --compress=upx main.py
+          pyinstaller --onefile --name meu-ip --icon=assets/icone.png --noconsole --strip --upx-exclude main.py
 
       - name: Package executable into .deb
         run: |
@@ -64,18 +67,17 @@ jobs:
           fpm -s dir -t deb -n meu-ip -v 1.0 --prefix=/ package
 
       - name: Upload Linux .deb package as artifact
-        uses: actions/upload-artifact@v4  # Atualizado para v4
+        uses: actions/upload-artifact@v4
         with:
           name: linux-deb-package
           path: package/*.deb
 
   release:
-    needs: [build_windows, build_linux]  # Garante que o release só será criado após o build
-
+    needs: [build_windows, build_linux]
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
