@@ -17,10 +17,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4  # Atualizado para a versão mais recente
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5  # Atualizado para a versão mais recente
+      uses: actions/setup-python@v5
       with:
         python-version: '3.13'
 
@@ -34,7 +34,7 @@ jobs:
         pyinstaller --onefile --icon=assets/icone.ico main.py --name meu-ip
 
     - name: Upload Windows executable
-      uses: actions/upload-artifact@v4  # Atualizado para a versão 4
+      uses: actions/upload-artifact@v4
       with:
         name: windows-executable
         path: dist/meu-ip.exe
@@ -44,10 +44,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4  # Atualizado para a versão mais recente
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5  # Atualizado para a versão mais recente
+      uses: actions/setup-python@v5
       with:
         python-version: '3.13'
 
@@ -74,7 +74,7 @@ jobs:
         mv meu-ip.deb meu-ip_1.0_all.deb
 
     - name: Upload Debian package
-      uses: actions/upload-artifact@v4  # Atualizado para a versão 4
+      uses: actions/upload-artifact@v4
       with:
         name: debian-package
         path: meu-ip_1.0_all.deb
@@ -85,16 +85,24 @@ jobs:
 
     steps:
     - name: Download Windows executable
-      uses: actions/download-artifact@v4  # Atualizado para a versão 4
+      uses: actions/download-artifact@v4
       with:
         name: windows-executable
         path: dist
 
     - name: Download Debian package
-      uses: actions/download-artifact@v4  # Atualizado para a versão 4
+      uses: actions/download-artifact@v4
       with:
         name: debian-package
         path: dist
+
+    - name: Extract tag name
+      id: extract_tag
+      run: |
+        # Remove o prefixo 'refs/tags/' para obter apenas o nome da tag
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        echo "Extracted tag name: $TAG_NAME"
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
     - name: Create Release
       id: create_release
@@ -102,8 +110,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ steps.extract_tag.outputs.tag_name }}  # Usa o nome da tag extraído
+        release_name: Release ${{ steps.extract_tag.outputs.tag_name }}
         draft: false
         prerelease: false
 
