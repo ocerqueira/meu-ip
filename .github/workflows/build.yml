@@ -73,28 +73,51 @@ jobs:
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
-
+      
       - name: Download Windows executable
         uses: actions/download-artifact@v4
         with:
           name: windows-executable
-          path: dist/
-
+          path: dist
+      
       - name: Download Linux .deb package
         uses: actions/download-artifact@v4
         with:
           name: linux-deb-package
-          path: package/
-
+          path: package
+      
       - name: Debug artifacts
-        run: ls -R dist/ package/
-
+        run: |
+          echo "Conteúdo de dist:"
+          ls -la dist/ || echo "Diretório dist não encontrado!"
+          echo "Conteúdo de package:"
+          ls -la package/ || echo "Diretório package não encontrado!"
+          echo "Listando todos os arquivos baixados:"
+          find . -type f -not -path "./.git*" | sort
+      
+      - name: Prepare release files
+        run: |
+          mkdir -p release_files
+          # Cria arquivos vazios caso não sejam encontrados (para depuração)
+          if [ -d "dist" ]; then
+            find dist -type f -name "*.exe" -exec cp {} release_files/ \;
+          else
+            echo "Diretório dist não encontrado" > release_files/debug_dist.txt
+          fi
+          
+          if [ -d "package" ]; then
+            find package -type f -name "*.deb" -exec cp {} release_files/ \;
+          else
+            echo "Diretório package não encontrado" > release_files/debug_package.txt
+          fi
+          
+          echo "Arquivos preparados para release:"
+          ls -la release_files/
+      
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          files: |
-            dist/meu-ip.exe
-            package/*.deb
+          files: release_files/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
