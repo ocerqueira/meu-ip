@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["Build"]  # Executa quando o workflow de build é concluído
+    types:
+      - completed
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Windows executable
+      uses: actions/download-artifact@v4
+      with:
+        name: meu-ip.exe
+        path: dist
+
+    - name: Download Debian package
+      uses: actions/download-artifact@v4
+      with:
+        name: meu-ip_1.0_all.deb
+        path: dist
+
+    - name: Extract tag name
+      id: extract_tag
+      run: |
+        # Remove o prefixo 'refs/tags/' para obter apenas o nome da tag
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        echo "Extracted tag name: $TAG_NAME"
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.extract_tag.outputs.tag_name }}  # Usa o nome da tag extraído
+        release_name: Release ${{ steps.extract_tag.outputs.tag_name }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Windows executable to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/meu-ip.exe
+        asset_name: meu-ip.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload Debian package to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/meu-ip_1.0_all.deb
+        asset_name: meu-ip_1.0_all.deb
+        asset_content_type: application/vnd.debian.binary-package
