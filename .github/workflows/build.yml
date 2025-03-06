@@ -3,7 +3,13 @@ name: Build
 on:
   push:
     tags:
-      - 'v*'  # Executa o workflow quando uma tag que começa com 'v' é criada
+      - 'v*'  # Executa quando uma tag que começa com 'v' é criada
+    branches:
+      - main  # Executa quando há um push para o branch 'main'
+  pull_request:
+    branches:
+      - main  # Executa quando um pull request é aberto ou atualizado no branch 'main'
+  workflow_dispatch:  # Permite acionamento manual
 
 jobs:
   build-windows:
@@ -31,7 +37,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: windows-executable
-        path: dist/meu-ip.exe  # Caminho para o executável gerado
+        path: dist/meu-ip.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -52,13 +58,11 @@ jobs:
 
     - name: Create .deb package
       run: |
-        # Cria a estrutura do pacote .deb
         mkdir -p meu-ip/usr/local/bin
         mkdir -p meu-ip/usr/share/icons
-        cp main.py meu-ip/usr/local/bin/meu-ip  # Copia o script para o diretório do pacote
-        cp assets/icone.png meu-ip/usr/share/icons/meu-ip.png  # Copia o ícone
+        cp main.py meu-ip/usr/local/bin/meu-ip
+        cp assets/icone.png meu-ip/usr/share/icons/meu-ip.png
 
-        # Cria o arquivo de controle do pacote .deb
         mkdir -p meu-ip/DEBIAN
         echo "Package: meu-ip" > meu-ip/DEBIAN/control
         echo "Version: 1.0" >> meu-ip/DEBIAN/control
@@ -66,12 +70,11 @@ jobs:
         echo "Maintainer: Your Name <you@example.com>" >> meu-ip/DEBIAN/control
         echo "Description: Meu IP - Um programa para verificar o endereço IP" >> meu-ip/DEBIAN/control
 
-        # Constrói o pacote .deb
         dpkg-deb --build meu-ip
-        mv meu-ip.deb meu-ip_1.0_all.deb  # Renomeia o pacote
+        mv meu-ip.deb meu-ip_1.0_all.deb
 
     - name: Upload Debian package
       uses: actions/upload-artifact@v2
       with:
         name: debian-package
-        path: meu-ip_1.0_all.deb  # Caminho para o pacote .deb gerado
+        path: meu-ip_1.0_all.deb
