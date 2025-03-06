@@ -2,8 +2,8 @@ name: Build Python Executables for Windows and Linux (deb)
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"  # Executa apenas quando uma tag como v1.0.0 é criada
 
 jobs:
   build_windows:
@@ -23,12 +23,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-      - name: Install UPX
-        run: choco install upx -y
-
       - name: Build executable for Windows
         run: |
-          pyinstaller --onefile --name meu-ip --icon=assets/icone.ico --noconsole --strip --upx-dir="C:\ProgramData\chocolatey\lib\upx\tools" main.py
+          pyinstaller --onefile --name meu-ip --icon=assets/icone.ico --noconsole --strip main.py
 
       - name: Upload Windows executable as artifact
         uses: actions/upload-artifact@v4
@@ -53,7 +50,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
           sudo apt-get update
-          sudo apt-get install -y ruby-dev build-essential upx
+          sudo apt-get install -y ruby-dev build-essential
           sudo gem install --no-document fpm
 
       - name: Build executable for Linux
@@ -62,10 +59,9 @@ jobs:
 
       - name: Package executable into .deb
         run: |
-            mkdir -p package/usr/local/bin
-            cp dist/meu-ip package/usr/local/bin/
-            fpm -s dir -t deb -n meu-ip -v 1.0 -C package --prefix=/usr/local/bin .
-        
+          mkdir -p package/usr/local/bin
+          cp dist/meu-ip package/usr/local/bin/
+          fpm -s dir -t deb -n meu-ip -v 1.0 --prefix=/ package
 
       - name: Upload Linux .deb package as artifact
         uses: actions/upload-artifact@v4
@@ -76,6 +72,7 @@ jobs:
   release:
     needs: [build_windows, build_linux]
     runs-on: ubuntu-latest
+
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
@@ -83,6 +80,7 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.ref_name }}  # Usa a tag que acionou o workflow
           files: |
             dist/meu-ip.exe
             package/*.deb
