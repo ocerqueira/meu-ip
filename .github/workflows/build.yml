@@ -1,104 +1,121 @@
-name: Build Python Executables for Windows and Linux (deb)
+name: Build and Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'  # Executa o workflow quando uma tag que começa com 'v' é criada
 
 jobs:
-  build_windows:
+  build-windows:
     runs-on: windows-latest
+
     steps:
-      - name: Check out the code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.13'
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.13'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
+    - name: Install PyInstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
 
-      - name: Build Windows executable
-        run: |
-          python -m pyinstaller --onefile --name meu-ip --icon=assets/icone.ico --noconsole main.py
+    - name: Build Windows executable with icon
+      run: |
+        pyinstaller --onefile --icon=assets/icone.ico main.py --name meu-ip
 
-      - name: Upload Windows executable as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-executable
-          path: dist/meu-ip.exe  # Ajuste este caminho conforme necessário
+    - name: Upload Windows executable
+      uses: actions/upload-artifact@v2
+      with:
+        name: windows-executable
+        path: dist/meu-ip.exe  # Caminho para o executável gerado
 
-  build_linux:
+  build-linux:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out the code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.13'
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.13'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          sudo apt-get update
-          sudo apt-get install -y ruby-dev build-essential
-          sudo gem install --no-document fpm
+    - name: Install dependencies for .deb package
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dh-make build-essential
 
-      - name: Build Linux executable
-        run: |
-          python -m pyinstaller --onefile --name meu-ip --icon=assets/icone.png --noconsole main.py
+    - name: Create .deb package
+      run: |
+        # Cria a estrutura do pacote .deb
+        mkdir -p meu-ip/usr/local/bin
+        mkdir -p meu-ip/usr/share/icons
+        cp main.py meu-ip/usr/local/bin/meu-ip  # Copia o script para o diretório do pacote
+        cp assets/icone.png meu-ip/usr/share/icons/meu-ip.png  # Copia o ícone
 
-      - name: Package executable into .deb
-        run: |
-          mkdir -p package/usr/local/bin
-          cp dist/meu-ip package/usr/local/bin/
-          fpm -s dir -t deb -n meu-ip -v 1.0 --prefix=/ package
+        # Cria o arquivo de controle do pacote .deb
+        mkdir -p meu-ip/DEBIAN
+        echo "Package: meu-ip" > meu-ip/DEBIAN/control
+        echo "Version: 1.0" >> meu-ip/DEBIAN/control
+        echo "Architecture: all" >> meu-ip/DEBIAN/control
+        echo "Maintainer: Your Name <you@example.com>" >> meu-ip/DEBIAN/control
+        echo "Description: Meu IP - Um programa para verificar o endereço IP" >> meu-ip/DEBIAN/control
 
-      - name: Upload Linux .deb package as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-deb-package
-          path: package/*.deb
+        # Constrói o pacote .deb
+        dpkg-deb --build meu-ip
+        mv meu-ip.deb meu-ip_1.0_all.deb  # Renomeia o pacote
+
+    - name: Upload Debian package
+      uses: actions/upload-artifact@v2
+      with:
+        name: debian-package
+        path: meu-ip_1.0_all.deb  # Caminho para o pacote .deb gerado
 
   release:
-    needs: [build_windows, build_linux]
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out the code
-        uses: actions/checkout@v4
+    - name: Download Windows executable
+      uses: actions/download-artifact@v2
+      with:
+        name: windows-executable
+        path: dist
 
-      - name: Download Windows executable
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-executable
-          path: dist
+    - name: Download Debian package
+      uses: actions/download-artifact@v2
+      with:
+        name: debian-package
+        path: dist
 
-      - name: Download Linux .deb package
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-deb-package
-          path: package
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
 
-      - name: Debug artifacts
-        run: |
-          echo "Conteúdo de dist:"
-          ls -la dist/ || echo "Diretório dist não encontrado!"
-          echo "Conteúdo de package:"
-          ls -la package/ || echo "Diretório package não encontrado!"
+    - name: Upload Windows executable to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/meu-ip.exe
+        asset_name: meu-ip.exe
+        asset_content_type: application/octet-stream
 
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}  # Usa a tag que acionou o workflow
-          files: |
-            dist/meu-ip.exe
-            package/*.deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upload Debian package to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/meu-ip_1.0_all.deb
+        asset_name: meu-ip_1.0_all.deb
+        asset_content_type: application/vnd.debian.binary-package
