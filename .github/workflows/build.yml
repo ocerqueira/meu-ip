@@ -62,9 +62,10 @@ jobs:
 
       - name: Package executable into .deb
         run: |
-          mkdir -p package/usr/local/bin
-          cp dist/meu-ip package/usr/local/bin/
-          fpm -s dir -t deb -n meu-ip -v 1.0 --prefix=/ package
+            mkdir -p package/usr/local/bin
+            cp dist/meu-ip package/usr/local/bin/
+            fpm -s dir -t deb -n meu-ip -v 1.0 -C package --prefix=/usr/local/bin .
+        
 
       - name: Upload Linux .deb package as artifact
         uses: actions/upload-artifact@v4
