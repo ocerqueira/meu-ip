@@ -58,7 +58,7 @@ jobs:
 
       - name: Build executable for Linux
         run: |
-          pyinstaller --onefile --name meu-ip --icon=assets/icone.png --noconsole --strip --upx-exclude main.py
+          pyinstaller --onefile --name meu-ip --icon=assets/icone.png --noconsole --strip main.py
 
       - name: Package executable into .deb
         run: |
