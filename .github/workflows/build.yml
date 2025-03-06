@@ -3,12 +3,11 @@ name: Build Python Executables for Windows and Linux (deb)
 on:
   push:
     tags:
-      - "v*"  # Executa apenas quando uma tag como v1.0.0 é criada
+      - "v*"
 
 jobs:
   build_windows:
     runs-on: windows-latest
-
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
@@ -35,7 +34,6 @@ jobs:
 
   build_linux:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
@@ -72,15 +70,29 @@ jobs:
   release:
     needs: [build_windows, build_linux]
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
 
+      - name: Download Windows executable
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-executable
+          path: dist/
+
+      - name: Download Linux .deb package
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-deb-package
+          path: package/
+
+      - name: Debug artifacts
+        run: ls -R dist/ package/
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}  # Usa a tag que acionou o workflow
+          tag_name: ${{ github.ref_name }}
           files: |
             dist/meu-ip.exe
             package/*.deb
