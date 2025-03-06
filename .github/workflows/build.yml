@@ -3,13 +3,13 @@ name: Build
 on:
   push:
     tags:
-      - 'v*'  # Executes when a tag starting with 'v' is created
+      - 'v*'  # Executa quando uma tag que começa com 'v' é criada
     branches:
-      - main  # Executes on push to the 'main' branch
+      - main  # Executa quando há um push para o branch 'main'
   pull_request:
     branches:
-      - main  # Executes on pull request to the 'main' branch
-  workflow_dispatch:  # Allows manual trigger
+      - main  # Executa quando um pull request é aberto ou atualizado no branch 'main'
+  workflow_dispatch:  # Permite acionamento manual
 
 jobs:
   build-windows:
@@ -36,8 +36,9 @@ jobs:
     - name: Upload Windows executable
       uses: actions/upload-artifact@v4
       with:
-        name: windows-executable
+        name: meu-ip.exe
         path: dist/meu-ip.exe
+        retention-days: 1  # Define o tempo de retenção do artefato (opcional)
 
   build-linux:
     runs-on: ubuntu-latest
@@ -76,8 +77,9 @@ jobs:
     - name: Upload Debian package
       uses: actions/upload-artifact@v4
       with:
-        name: debian-package
+        name: meu-ip_1.0_all.deb
         path: meu-ip_1.0_all.deb
+        retention-days: 1  # Define o tempo de retenção do artefato (opcional)
 
   release:
     needs: [build-windows, build-linux]
@@ -87,18 +89,19 @@ jobs:
     - name: Download Windows executable
       uses: actions/download-artifact@v4
       with:
-        name: windows-executable
+        name: meu-ip.exe
         path: dist
 
     - name: Download Debian package
       uses: actions/download-artifact@v4
       with:
-        name: debian-package
+        name: meu-ip_1.0_all.deb
         path: dist
 
     - name: Extract tag name
       id: extract_tag
       run: |
+        # Remove o prefixo 'refs/tags/' para obter apenas o nome da tag
         TAG_NAME=${GITHUB_REF#refs/tags/}
         echo "Extracted tag name: $TAG_NAME"
         echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
@@ -109,7 +112,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.extract_tag.outputs.tag_name }}
+        tag_name: ${{ steps.extract_tag.outputs.tag_name }}  # Usa o nome da tag extraído
         release_name: Release ${{ steps.extract_tag.outputs.tag_name }}
         draft: false
         prerelease: false
