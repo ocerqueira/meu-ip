@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - main  # Executa quando há um pull request para o branch 'main'
+  workflow_dispatch:  # Permite acionamento manual
 
 jobs:
   build:
