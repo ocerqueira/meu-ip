@@ -1,66 +1,33 @@
 name: Build
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-on:
-  pull_request:
-    branches:
-      - main  # Executa quando há um pull request para o branch 'main'
-  workflow_dispatch:  # Permite acionamento manual
+on: [push, pull_request]
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]  # Executa em Windows e Linux
+        os: [windows-latest, ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Check out Git repository
+      - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Instalar Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.13  # Versão do Python que você está usando
+          python-version: "3.9"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller  # Instala o PyInstaller para gerar o executável
+      - name: Instalar dependências Python
+        run: pip install cx_Freeze
 
-      - name: Build Windows executable
-        if: matrix.os == 'windows-latest'
-        run: |
-          pyinstaller --onefile --icon=assets/icone.ico main.py --name meu-ip
+      - name: Build com cx_Freeze
+        run: python setup.py build
 
-      - name: Build Linux package
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dh-make build-essential
-          mkdir -p meu-ip/usr/local/bin
-          mkdir -p meu-ip/usr/share/icons
-          cp main.py meu-ip/usr/local/bin/meu-ip
-          cp assets/icone.png meu-ip/usr/share/icons/meu-ip.png
-
-          mkdir -p meu-ip/DEBIAN
-          echo "Package: meu-ip" > meu-ip/DEBIAN/control
-          echo "Version: 1.0" >> meu-ip/DEBIAN/control
-          echo "Architecture: all" >> meu-ip/DEBIAN/control
-          echo "Maintainer: Your Name <you@example.com>" >> meu-ip/DEBIAN/control
-          echo "Description: Meu IP - Um programa para verificar o endereço IP" >> meu-ip/DEBIAN/control
-
-          dpkg-deb --build meu-ip
-          mv meu-ip.deb meu-ip_1.0_all.deb
-
-      - name: Upload artifacts
+      - name: Criar Artefato
         uses: actions/upload-artifact@v4
         with:
           name: Build-${{ matrix.os }}
           path: |
-            dist/meu-ip.exe  # Executável do Windows
-            meu-ip_1.0_all.deb  # Pacote Debian
+            build/**
