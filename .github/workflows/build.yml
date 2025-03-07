@@ -1,51 +1,65 @@
-name: Release
+name: Build
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
-  push:
-    tags:
-      - 'v*'  # Executa quando uma tag que começa com 'v' é criada
+  pull_request:
+    branches:
+      - main  # Executa quando há um pull request para o branch 'main'
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]  # Executa em Windows e Linux
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
 
-      - name: Download Windows executable
-        uses: actions/download-artifact@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          name: Build-windows-latest
-          path: dist
+          python-version: 3.13  # Versão do Python que você está usando
 
-      - name: Download Debian package
-        uses: actions/download-artifact@v4
-        with:
-          name: Build-ubuntu-latest
-          path: dist
-
-      - name: Extract tag name
-        id: extract_tag
+      - name: Install dependencies
         run: |
-          # Remove o prefixo 'refs/tags/' para obter apenas o nome da tag
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "Extracted tag name: $TAG_NAME"
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          python -m pip install --upgrade pip
+          pip install pyinstaller  # Instala o PyInstaller para gerar o executável
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Build Windows executable
+        if: matrix.os == 'windows-latest'
+        run: |
+          pyinstaller --onefile --icon=assets/icone.ico main.py --name meu-ip
+
+      - name: Build Linux package
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dh-make build-essential
+          mkdir -p meu-ip/usr/local/bin
+          mkdir -p meu-ip/usr/share/icons
+          cp main.py meu-ip/usr/local/bin/meu-ip
+          cp assets/icone.png meu-ip/usr/share/icons/meu-ip.png
+
+          mkdir -p meu-ip/DEBIAN
+          echo "Package: meu-ip" > meu-ip/DEBIAN/control
+          echo "Version: 1.0" >> meu-ip/DEBIAN/control
+          echo "Architecture: all" >> meu-ip/DEBIAN/control
+          echo "Maintainer: Your Name <you@example.com>" >> meu-ip/DEBIAN/control
+          echo "Description: Meu IP - Um programa para verificar o endereço IP" >> meu-ip/DEBIAN/control
+
+          dpkg-deb --build meu-ip
+          mv meu-ip.deb meu-ip_1.0_all.deb
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ steps.extract_tag.outputs.tag_name }}
-          name: Release ${{ steps.extract_tag.outputs.tag_name }}
-          draft: false
-          prerelease: false
-          files: |
-            dist/meu-ip.exe
-            dist/meu-ip_1.0_all.deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: Build-${{ matrix.os }}
+          path: |
+            dist/meu-ip.exe  # Executável do Windows
+            meu-ip_1.0_all.deb  # Pacote Debian
