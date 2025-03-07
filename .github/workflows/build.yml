@@ -1,82 +1,51 @@
-name: Build
+name: Release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
     tags:
       - 'v*'  # Executa quando uma tag que começa com 'v' é criada
-    branches:
-      - main  # Executa quando há um push para o branch 'main'
-  pull_request:
-    branches:
-      - main  # Executa quando um pull request é aberto ou atualizado no branch 'main'
-  workflow_dispatch:  # Permite acionamento manual
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-
-    - name: Install PyInstaller
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-
-    - name: Build Windows executable with icon
-      run: |
-        pyinstaller --onefile --icon=assets/icone.ico main.py --name meu-ip
-
-    - name: Upload Windows executable
-      uses: actions/upload-artifact@v4
-      with:
-        name: meu-ip.exe
-        path: dist/meu-ip.exe
-        retention-days: 1  # Define o tempo de retenção do artefato (opcional)
-
-  build-linux:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Check out Git repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
+      - name: Download Windows executable
+        uses: actions/download-artifact@v4
+        with:
+          name: Build-windows-latest
+          path: dist
 
-    - name: Install dependencies for .deb package
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y dh-make build-essential
+      - name: Download Debian package
+        uses: actions/download-artifact@v4
+        with:
+          name: Build-ubuntu-latest
+          path: dist
 
-    - name: Create .deb package
-      run: |
-        mkdir -p meu-ip/usr/local/bin
-        mkdir -p meu-ip/usr/share/icons
-        cp main.py meu-ip/usr/local/bin/meu-ip
-        cp assets/icone.png meu-ip/usr/share/icons/meu-ip.png
+      - name: Extract tag name
+        id: extract_tag
+        run: |
+          # Remove o prefixo 'refs/tags/' para obter apenas o nome da tag
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Extracted tag name: $TAG_NAME"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
-        mkdir -p meu-ip/DEBIAN
-        echo "Package: meu-ip" > meu-ip/DEBIAN/control
-        echo "Version: 1.0" >> meu-ip/DEBIAN/control
-        echo "Architecture: all" >> meu-ip/DEBIAN/control
-        echo "Maintainer: Your Name <you@example.com>" >> meu-ip/DEBIAN/control
-        echo "Description: Meu IP - Um programa para verificar o endereço IP" >> meu-ip/DEBIAN/control
-
-        dpkg-deb --build meu-ip
-        mv meu-ip.deb meu-ip_1.0_all.deb
-
-    - name: Upload Debian package
-      uses: actions/upload-artifact@v4
-      with:
-        name: meu-ip_1.0_all.deb
-        path: meu-ip_1.0_all.deb
-        retention-days: 1  # Define o tempo de retenção do artefato (opcional)
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.extract_tag.outputs.tag_name }}
+          name: Release ${{ steps.extract_tag.outputs.tag_name }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/meu-ip.exe
+            dist/meu-ip_1.0_all.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
