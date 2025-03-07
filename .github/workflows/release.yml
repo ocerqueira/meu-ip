@@ -6,47 +6,52 @@ concurrency:
 
 on:
   push:
-    tags:
-      - 'v*'  # Executa quando uma tag que começa com 'v' é criada
-  workflow_dispatch:  # Permite acionamento manual
+    branches: main
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
 
-      - name: Download Windows executable
-        uses: actions/download-artifact@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
         with:
-          name: Build-windows-latest
-          path: dist
+          python-version: 3.9
 
-      - name: Download Debian package
-        uses: actions/download-artifact@v4
-        with:
-          name: Build-ubuntu-latest
-          path: dist
+      - name: Install dependencies
+        run: pip install cx_Freeze
 
-      - name: Extract tag name
-        id: extract_tag
+      - name: Build with cx_Freeze (Windows)
+        if: matrix.os == 'windows-latest'
         run: |
-          # Remove o prefixo 'refs/tags/' para obter apenas o nome da tag
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "Extracted tag name: $TAG_NAME"
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          python setup.py build
+        env:
+          BASE: "Win32GUI"  # Evita a janela do console no Windows
 
-      - name: Create Release
+      - name: Build with cx_Freeze (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          python setup.py build
+
+      - name: Create artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-${{ matrix.os }}
+          path: |
+            build/**  # Inclui todos os arquivos gerados pelo cx_Freeze
+
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.extract_tag.outputs.tag_name || 'v1.0' }}  # Usa a tag ou um valor padrão
-          name: Release ${{ steps.extract_tag.outputs.tag_name || 'v1.0' }}
-          draft: false
-          prerelease: false
+          draft: true
           files: |
-            dist/meu-ip.exe
-            dist/meu-ip_1.0_all.deb
+            build/**  # Inclui todos os arquivos gerados pelo cx_Freeze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
