@@ -25,10 +25,25 @@ jobs:
       - name: Build com cx_Freeze
         run: python setup.py build
 
+      - name: Instalar UPX
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            choco install upx -y
+          else
+            sudo apt-get update && sudo apt-get install -y upx
+          fi
+
+      - name: Comprimir Executável com UPX
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            upx --best --ultra-brute build/exe.win*/meu_ip.exe
+          else
+            upx --best --ultra-brute build/exe.linux*/meu_ip
+          fi
+
       - name: Criar Artefato
         uses: actions/upload-artifact@v4
         with:
           name: Build-${{ matrix.os }}
           path: build/*
           if-no-files-found: error
-
