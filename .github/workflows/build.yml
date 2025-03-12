@@ -2,9 +2,8 @@ name: Build Artifacts
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -12,42 +11,42 @@ jobs:
     name: Build Windows (EXE e MSI)
     runs-on: windows-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.x'
 
       - name: Install cx_Freeze
         run: pip install cx_Freeze
 
-      - name: Build executável (cx_Freeze)
-        run: python setup.py build
-
-      - name: Build MSI Installer
-        run: python setup.py bdist_msi
+      - name: Build project (EXE and MSI)
+        run: |
+          python setup.py build
+          python setup.py bdist_msi
+        shell: powershell
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: windows-build
+          name: windows-build-artifacts
           path: |
-            build/**/*
-            dist/**/*.msi
+            build\**\*
+            dist\**\*.msi
 
   build-deb:
-    name: Build Debian Package
+    name: Build Debian Package (.deb)
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.x'
 
       - name: Install stdeb dependencies
         run: |
@@ -56,7 +55,7 @@ jobs:
           pip install --upgrade pip setuptools wheel
           pip install stdeb
 
-      - name: Build .deb package
+      - name: Build Debian package (.deb)
         run: python setup_deb.py --command-packages=stdeb.command bdist_deb
 
       - name: Upload Debian artifact
