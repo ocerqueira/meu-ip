@@ -1,34 +1,66 @@
-name: Build
+name: Build Artifacts
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-
-    runs-on: ${{ matrix.os }}
-
+  build-windows:
+    name: Build Windows (EXE e MSI)
+    runs-on: windows-latest
     steps:
-      - name: Checkout do repositório
-        uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v3
 
-      - name: Instalar Python
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: '3.9'
 
-      - name: Instalar dependências Python
+      - name: Install cx_Freeze
         run: pip install cx_Freeze
 
-      - name: Build com cx_Freeze
+      - name: Build executável (cx_Freeze)
         run: python setup.py build
 
-      - name: Criar Artefato
-        uses: actions/upload-artifact@v4
-        with:
-          name: Build-${{ matrix.os }}
-          path: build/*
-          if-no-files-found: error
+      - name: Build MSI Installer
+        run: python setup.py bdist_msi
 
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: |
+            build/**/*
+            dist/**/*.msi
+
+  build-deb:
+    name: Build Debian Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install stdeb dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-stdeb
+          pip install --upgrade pip setuptools wheel
+          pip install stdeb
+
+      - name: Build .deb package
+        run: python setup_deb.py --command-packages=stdeb.command bdist_deb
+
+      - name: Upload Debian artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: debian-package
+          path: deb_dist/*.deb
