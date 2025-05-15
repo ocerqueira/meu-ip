@@ -29,10 +29,10 @@ jobs:
 
       - name: Build executable
         run: |
-          pyinstaller --onefile --noconsole main.py
+          pyinstaller --onefile --noconsole --name INFO-PC main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-binary
-          path: dist/main
+          name: ${{ matrix.os }}-INFO-PC
+          path: dist/INFO-PC*
