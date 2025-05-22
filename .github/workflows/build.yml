@@ -14,7 +14,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     permissions:
-      contents: write  # Necessário para criar a release
+      contents: write 
 
     steps:
       - name: Checkout code
@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |
@@ -33,6 +33,35 @@ jobs:
       - name: Build executable
         run: |
           pyinstaller --onefile --noconsole --name INFO-PC main.py
+
+      - name: Instalar appimagetool
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
+          wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+      - name: Preparar AppDir para AppImage
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp dist/INFO-PC AppDir/usr/bin/
+          cp appimage/meu-ip.desktop AppDir/
+          cp appimage/meu-ip.png AppDir/
+          chmod +x AppDir/usr/bin/INFO-PC
+
+      - name: Gerar AppImage
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          ./appimagetool AppDir INFO-PC-x86_64.AppImage
+
+      - name: Upload AppImage
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppImage
+          path: INFO-PC-x86_64.AppImage
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

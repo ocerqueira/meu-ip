@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Meu IP
+Exec=INFO-PC
+Icon=icone
+Categories=Utility;
+Comment=Mostra informações do IP e máquina
+Terminal=false
